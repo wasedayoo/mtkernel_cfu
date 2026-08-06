@@ -16,6 +16,7 @@ EXPORT void knl_startup_hw(void)
 EXPORT void knl_shutdown_hw( void )
 {
 	disint();
+	*(volatile unsigned int*)0x00100000 = 0x5555;
 	while(1);
 }
 #endif /* USE_SHUTDOWN */
