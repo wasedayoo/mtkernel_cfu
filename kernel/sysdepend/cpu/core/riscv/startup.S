@@ -5,8 +5,8 @@
 	.global _start
 _start:
 	/* Disable interrupts */
-/*	csrw	mstatus, zero */
-/*	csrw	mie, zero     */
+	csrw	mstatus, zero
+	csrw	mie, zero
 
 	/* Set stack pointer */
 	la	sp, _stack_top
