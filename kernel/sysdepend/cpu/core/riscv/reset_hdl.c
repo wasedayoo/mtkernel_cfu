@@ -11,6 +11,7 @@ volatile uint32_t csr_actual;
 
 extern uint32_t __bss_start[];
 extern uint32_t __bss_end[];
+extern uint32_t mret_test(void);
 
 static void clear_bss(void)
 {
@@ -58,6 +59,50 @@ static inline uint32_t read_mie(void)
 
     __asm__ volatile ("csrr %0, mie" : "=r" (value));
     return value;
+}
+
+static inline void write_mtvec(uint32_t value)
+{
+    __asm__ volatile ("csrw mtvec, %0" : : "r" (value));
+}
+
+static inline uint32_t read_mtvec(void)
+{
+    uint32_t value;
+
+    __asm__ volatile ("csrr %0, mtvec" : "=r" (value));
+    return value;
+}
+
+static inline void write_mepc(uint32_t value)
+{
+    __asm__ volatile ("csrw mepc, %0" : : "r" (value));
+}
+
+static inline uint32_t read_mepc(void)
+{
+    uint32_t value;
+
+    __asm__ volatile ("csrr %0, mepc" : "=r" (value));
+    return value;
+}
+
+static inline void write_mcause(uint32_t value)
+{
+    __asm__ volatile ("csrw mcause, %0" : : "r" (value));
+}
+
+static inline uint32_t read_mcause(void)
+{
+    uint32_t value;
+
+    __asm__ volatile ("csrr %0, mcause" : "=r" (value));
+    return value;
+}
+
+static inline void clear_mstatus_bits(uint32_t mask)
+{
+    __asm__ volatile ("csrc mstatus, %0" : : "r" (mask));
 }
 
 static uint32_t csr_test(void)
@@ -114,6 +159,50 @@ static uint32_t startup_csr_test(void)
     return 0;
 }
 
+static uint32_t mret_csr_test(void)
+{
+    uint32_t actual;
+    uint32_t handler = (uint32_t)(uintptr_t)&mret_test;
+
+    write_mtvec(handler);
+    actual = read_mtvec();
+    if (actual != handler) {
+        csr_actual = actual;
+        return 0xdead000a;
+    }
+
+    write_mepc(0x00000100);
+    actual = read_mepc();
+    if (actual != 0x00000100) {
+        csr_actual = actual;
+        return 0xdead000b;
+    }
+
+    write_mcause(0x0000000b);
+    actual = read_mcause();
+    if (actual != 0x0000000b) {
+        csr_actual = actual;
+        return 0xdead000c;
+    }
+
+    write_mstatus(0x00000088);
+    clear_mstatus_bits(0x00000008);
+    actual = read_mstatus();
+    if (actual != 0x00000080) {
+        csr_actual = actual;
+        return 0xdead000d;
+    }
+
+    actual = mret_test();
+    if (actual != 0x00001888) {
+        csr_actual = actual;
+        return 0xdead000e;
+    }
+
+    write_mstatus(0);
+    return 0;
+}
+
 void Reset_Handler(void)
 {
     uint32_t result;
@@ -126,9 +215,12 @@ void Reset_Handler(void)
     if (result == 0) {
         result = csr_test();
     }
+    if (result == 0) {
+        result = mret_csr_test();
+    }
 
     if (result != 0) {
-        /* csr_test() has already set a diagnostic result. */
+        /* The failing test has already set a diagnostic result. */
     } else if (rodata_value != 0xa5a55a5a) {
         result = 0xdead0001;
     } else if (initialized_data != 0x13579bdf) {
