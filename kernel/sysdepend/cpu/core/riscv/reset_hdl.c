@@ -8,10 +8,18 @@ volatile const uint32_t rodata_value = 0xa5a55a5a;
 volatile uint32_t initialized_data = 0x13579bdf;
 volatile uint32_t zero_initialized_data;
 volatile uint32_t csr_actual;
+volatile uint32_t trap_seen;
+volatile uint32_t trap_mcause_actual;
+volatile uint32_t trap_mepc_actual;
+volatile uint32_t trap_mstatus_entry;
+volatile uint32_t trap_after_at_entry;
+volatile uint32_t trap_after_marker;
 
 extern uint32_t __bss_start[];
 extern uint32_t __bss_end[];
 extern uint32_t mret_test(void);
+extern uint32_t ecall_test(void);
+extern void ecall_test_site(void);
 
 static void clear_bss(void)
 {
@@ -203,6 +211,55 @@ static uint32_t mret_csr_test(void)
     return 0;
 }
 
+static uint32_t ecall_round_trip_test(void)
+{
+    uint32_t actual;
+    uint32_t expected_mepc = (uint32_t)(uintptr_t)&ecall_test_site;
+
+    trap_seen = 0;
+    trap_mcause_actual = 0;
+    trap_mepc_actual = 0;
+    trap_mstatus_entry = 0;
+    trap_after_at_entry = 0;
+    trap_after_marker = 0;
+
+    /* Prove that ECALL, rather than Test 6, writes the exception cause. */
+    write_mcause(0x00000055);
+    actual = ecall_test();
+
+    if (trap_seen != 1) {
+        csr_actual = trap_seen;
+        return 0xdead000f;
+    }
+    if (trap_mcause_actual != 0x0000000b) {
+        csr_actual = trap_mcause_actual;
+        return 0xdead0010;
+    }
+    if (trap_mepc_actual != expected_mepc) {
+        csr_actual = trap_mepc_actual;
+        return 0xdead0011;
+    }
+    if (trap_mstatus_entry != 0x00001880) {
+        csr_actual = trap_mstatus_entry;
+        return 0xdead0012;
+    }
+    if (trap_after_at_entry != 0) {
+        csr_actual = trap_after_at_entry;
+        return 0xdead0013;
+    }
+    if (trap_after_marker != 1) {
+        csr_actual = trap_after_marker;
+        return 0xdead0014;
+    }
+    if (actual != 0x00001888) {
+        csr_actual = actual;
+        return 0xdead0015;
+    }
+
+    write_mstatus(0);
+    return 0;
+}
+
 void Reset_Handler(void)
 {
     uint32_t result;
@@ -217,6 +274,9 @@ void Reset_Handler(void)
     }
     if (result == 0) {
         result = mret_csr_test();
+    }
+    if (result == 0) {
+        result = ecall_round_trip_test();
     }
 
     if (result != 0) {
