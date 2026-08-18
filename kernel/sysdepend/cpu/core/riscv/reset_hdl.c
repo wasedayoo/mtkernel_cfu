@@ -14,12 +14,29 @@ volatile uint32_t trap_mepc_actual;
 volatile uint32_t trap_mstatus_entry;
 volatile uint32_t trap_after_at_entry;
 volatile uint32_t trap_after_marker;
+volatile uint32_t timer_trap_seen;
+volatile uint32_t timer_mcause_actual;
+volatile uint32_t timer_mepc_actual;
+volatile uint32_t timer_mstatus_entry;
+volatile uint32_t timer_resume_marker;
+volatile uint32_t timer_mtime_before;
+volatile uint32_t timer_mtime_after;
+volatile uint32_t timer_compare_low;
+volatile uint32_t timer_mtime_at_trap;
 
 extern uint32_t __bss_start[];
 extern uint32_t __bss_end[];
 extern uint32_t mret_test(void);
 extern uint32_t ecall_test(void);
 extern void ecall_test_site(void);
+extern uint32_t timer_interrupt_test(void);
+extern void timer_trap_handler(void);
+extern void timer_wait_start(void);
+extern void timer_wait_end(void);
+
+#define MTIME_L        (*(volatile uint32_t *)0x6000bff8u)
+#define MTIMECMP_L     (*(volatile uint32_t *)0x60004000u)
+#define MTIMECMP_H     (*(volatile uint32_t *)0x60004004u)
 
 static void clear_bss(void)
 {
@@ -260,6 +277,116 @@ static uint32_t ecall_round_trip_test(void)
     return 0;
 }
 
+static void write_mtimecmp(uint32_t high, uint32_t low)
+{
+    /* RV32-safe sequence: suppress a transient compare match while updating. */
+    MTIMECMP_L = 0xffffffffu;
+    MTIMECMP_H = high;
+    MTIMECMP_L = low;
+}
+
+static void wait_until_mtime(uint32_t target)
+{
+    while ((int32_t)(MTIME_L - target) < 0) {
+    }
+}
+
+static uint32_t timer_interrupt_round_trip_test(void)
+{
+    uint32_t actual;
+    uint32_t deadline;
+    uint32_t interrupt_pc;
+    uint32_t wait_start = (uint32_t)(uintptr_t)&timer_wait_start;
+    uint32_t wait_end = (uint32_t)(uintptr_t)&timer_wait_end;
+
+    timer_trap_seen = 0;
+    timer_mcause_actual = 0;
+    timer_mepc_actual = 0;
+    timer_mstatus_entry = 0;
+    timer_resume_marker = 0;
+    timer_compare_low = 0;
+    timer_mtime_at_trap = 0;
+
+    write_mstatus(0);
+    write_mie(0);
+    write_mtvec((uint32_t)(uintptr_t)&timer_trap_handler);
+
+    timer_mtime_before = MTIME_L;
+    timer_mtime_after = MTIME_L;
+    if (timer_mtime_after <= timer_mtime_before) {
+        csr_actual = timer_mtime_after;
+        return 0xdead0016;
+    }
+
+    /* A pending timer request must be masked while global MIE is clear. */
+    deadline = MTIME_L + 32;
+    write_mtimecmp(0, deadline);
+    wait_until_mtime(deadline + 16);
+    if (timer_trap_seen != 0) {
+        csr_actual = timer_trap_seen;
+        return 0xdead0017;
+    }
+
+    /* Global MIE alone must not be sufficient while mie.MTIE remains clear. */
+    write_mstatus(0x00000008);
+    deadline = MTIME_L + 16;
+    wait_until_mtime(deadline);
+    if (timer_trap_seen != 0) {
+        csr_actual = timer_trap_seen;
+        return 0xdead0018;
+    }
+
+    /* MTIE alone must not be sufficient while mstatus.MIE remains clear. */
+    write_mstatus(0);
+    write_mie(0x00000080);
+    deadline = MTIME_L + 16;
+    wait_until_mtime(deadline);
+    if (timer_trap_seen != 0) {
+        csr_actual = timer_trap_seen;
+        return 0xdead0019;
+    }
+
+    write_mie(0);
+    write_mtimecmp(0xffffffffu, 0xffffffffu);
+    actual = timer_interrupt_test();
+
+    if (timer_trap_seen != 1) {
+        csr_actual = timer_trap_seen;
+        return 0xdead001a;
+    }
+    if (timer_mcause_actual != 0x80000007u) {
+        csr_actual = timer_mcause_actual;
+        return 0xdead001b;
+    }
+    if ((int32_t)(timer_mtime_at_trap - timer_compare_low) < 0) {
+        csr_actual = timer_mtime_at_trap;
+        return 0xdead0020;
+    }
+
+    interrupt_pc = timer_mepc_actual;
+    if ((interrupt_pc < wait_start) || (interrupt_pc >= wait_end) ||
+        ((interrupt_pc & 3u) != 0)) {
+        csr_actual = interrupt_pc;
+        return 0xdead001c;
+    }
+    if (timer_mstatus_entry != 0x00001880) {
+        csr_actual = timer_mstatus_entry;
+        return 0xdead001d;
+    }
+    if (timer_resume_marker != 1) {
+        csr_actual = timer_resume_marker;
+        return 0xdead001e;
+    }
+    if (actual != 0x00001888) {
+        csr_actual = actual;
+        return 0xdead001f;
+    }
+
+    write_mstatus(0);
+    write_mie(0);
+    return 0;
+}
+
 void Reset_Handler(void)
 {
     uint32_t result;
@@ -277,6 +404,9 @@ void Reset_Handler(void)
     }
     if (result == 0) {
         result = ecall_round_trip_test();
+    }
+    if (result == 0) {
+        result = timer_interrupt_round_trip_test();
     }
 
     if (result != 0) {
