@@ -90,7 +90,11 @@
  */
 #define USE_NOINIT		(0)	/* Use zero-clear bss section */
 #define USE_IMALLOC		(1)	/* Use dynamic memory allocation */
+#ifdef CFU_MTKERNEL_TEST9
+#define USE_SHUTDOWN		(0)	/* Test 9 stops in usermain() */
+#else
 #define USE_SHUTDOWN		(1)	/* Use System shutdown */
+#endif
 #define USE_STATIC_IVT		(0)	/* Use static interrupt vector table */
 
 
@@ -122,7 +126,11 @@
 /* Debugger support function
  *   1: Valid  0: Invalid
  */
+#ifdef CFU_MTKERNEL_TEST9
+#define USE_DBGSPT		(0)	/* Debugger support is outside Test 9 */
+#else
 #define USE_DBGSPT		(1)	/* Use mT-Kernel/DS */
+#endif
 #define USE_OBJECT_NAME		(0)	/* Use DS object name */
 
 #define OBJECT_NAME_LENGTH	(8)	/* DS Object name length */
@@ -131,9 +139,15 @@
 /* Use T-Monitor Compatible API Library  & Message to terminal.
  *  1: Valid  0: Invalid
  */
+#ifdef CFU_MTKERNEL_TEST9
+#define	USE_TMONITOR		(0)	/* UART is not implemented on CFU-PG */
+#define USE_SYSTEM_MESSAGE	(0)	/* Observe the Test 9 signature instead */
+#define USE_EXCEPTION_DBG_MSG	(0)	/* UART is unavailable */
+#else
 #define	USE_TMONITOR		(1)	/* T-Monitor API */
 #define USE_SYSTEM_MESSAGE	(1)	/* System Message */
 #define USE_EXCEPTION_DBG_MSG	(1)	/* Excepttion debug message */
+#endif
 #define USE_TASK_DBG_MSG	(0)	/* Tsak debug message */
 
 /*---------------------------------------------------------------------- */
@@ -147,7 +161,11 @@
 /* Use Physical timer.
  *  1: Valid  0: Invalid
  */
+#ifdef CFU_MTKERNEL_TEST9
+#define USE_PTMR		(0)	/* Physical timer API is outside Test 9 */
+#else
 #define USE_PTMR		(1)	/* Use Physical timer */
+#endif
 
 /*---------------------------------------------------------------------- */
 /* Use Sample device driver.

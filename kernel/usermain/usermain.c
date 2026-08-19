@@ -14,6 +14,34 @@
 #include <tk/tkernel.h>
 #include <tm/tmonitor.h>
 
+#ifdef CFU_MTKERNEL_TEST9
+
+/* Test 9 ends at the first user entry point; task tests start at Test 10. */
+__attribute__((section(".test_status"), used))
+volatile UW cfu_test9_status = 0;
+volatile UW cfu_test9_data = 0x13579bdfU;
+volatile UW cfu_test9_bss;
+
+WEAK_FUNC EXPORT INT usermain(void)
+{
+	if (cfu_test9_data != 0x13579bdfU) {
+		cfu_test9_status = 0xdead0091U;
+		for (;;) {
+		}
+	}
+	if (cfu_test9_bss != 0) {
+		cfu_test9_status = 0xdead0092U;
+		for (;;) {
+		}
+	}
+	cfu_test9_status = 0x12345679U;
+	for (;;) {
+		/* Keep the initial task alive after publishing the result. */
+	}
+}
+
+#else
+
 /*
  * Entry routine for the user application.
  * At this point, Initialize and start the user application.
@@ -73,3 +101,5 @@ WEAK_FUNC EXPORT INT	usermain( void )
 	tm_printf((UB*)"[usermain] Both tasks should be finished by now. Exiting...\n");
 	return 0;
 }
+
+#endif /* CFU_MTKERNEL_TEST9 */
