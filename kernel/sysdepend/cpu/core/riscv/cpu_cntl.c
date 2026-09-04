@@ -76,5 +76,6 @@ EXPORT void knl_force_dispatch( void )
 EXPORT void knl_dispatch( void )
 {
 	extern void knl_dispatch_entry(void);
-	asm volatile("call knl_dispatch_entry");
+	/* Preserve ra so dispatch.S can resume at knl_dispatch()'s caller. */
+	asm volatile("tail knl_dispatch_entry");
 }
