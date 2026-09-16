@@ -3,27 +3,30 @@
 #if USE_TMONITOR
 #include "../../libtm.h"
 
-#define UART0_THR	((volatile unsigned char*)0x10000000)
-#define UART0_LSR	((volatile unsigned char*)0x10000005)
+/* CFU-PG simulation console: write one character to the low eight bits. */
+#define CFU_CONSOLE_TX	(*(volatile UW *)0x80000000U)
 
 EXPORT	void	tm_snd_dat( const UB* buf, INT size )
 {
 	INT i;
 	for (i = 0; i < size; i++) {
-		/* Wait for Transmitter Holding Register Empty (bit 5) */
-		while ((*UART0_LSR & 0x20) == 0);
-		*UART0_THR = buf[i];
+		CFU_CONSOLE_TX = buf[i];
 	}
 }
 
 EXPORT	void	tm_rcv_dat( UB* buf, INT size )
 {
-	/* Stub receive */
+	INT i;
+
+	/* The current CFU-PG console is output-only. */
+	for (i = 0; i < size; i++) {
+		buf[i] = 0;
+	}
 }
 
 EXPORT	void	tm_com_init(void)
 {
-	/* No init needed for default UART */
+	/* The simulation console does not require initialization. */
 }
 
 #endif /* USE_TMONITOR */

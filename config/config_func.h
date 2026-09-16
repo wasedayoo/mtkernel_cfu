@@ -30,8 +30,8 @@
 #define	USE_TIMEMANAGEMENT	(1)
 #define	USE_CYCLICHANDLER	(1)
 #define USE_ALARMHANDLER	(1)
-#ifdef CFU_MTKERNEL_TEST9
-#define USE_DEVICE		(0)	/* No CFU-PG device drivers are needed to reach usermain */
+#ifdef CFU_MTKERNEL
+#define USE_DEVICE		(0)	/* CFU-PG device manager is not implemented */
 #else
 #define USE_DEVICE		(1)
 #endif

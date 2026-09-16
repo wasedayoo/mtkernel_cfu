@@ -15,6 +15,10 @@ EXPORT void knl_startup_hw(void)
 #if USE_SHUTDOWN
 EXPORT void knl_shutdown_hw( void )
 {
+#ifdef CFU_MTKERNEL_SIM
+	/* Signal a successful application exit to the CFU-PG testbench. */
+	*(volatile UW *)0x80000000U = 0x00020000U;
+#endif
 	disint();
 	while(1);
 }
