@@ -12,6 +12,7 @@
 #define BEGIN_CRITICAL_SECTION	{ UINT _mstatus_ = disint();
 #define END_CRITICAL_SECTION	if ( !isDI(_mstatus_)			\
 				  && knl_ctxtsk != knl_schedtsk		\
+				  && !knl_isTaskIndependent()		\
 				  && !knl_dispatch_disabled ) {		\
 					knl_dispatch();			\
 				}					\

@@ -6,8 +6,14 @@
 #define CLINT_MTIMECMP_L	(*((volatile _UW*)0x60004000))
 #define CLINT_MTIMECMP_H	(*((volatile _UW*)0x60004004))
 
-/* Timer tick count: Assuming 1MHz timer clock (1000 ticks = 1ms) */
-#define TIMER_TICK_DIV		(1000000 / (1000 / TIMER_PERIOD))
+/*
+ * Timer tick count.  Simulation defaults to the historical 1 MHz model;
+ * an FPGA build supplies the actual CPU/machine-timer clock frequency.
+ */
+#ifndef CFU_MTKERNEL_TIMER_HZ
+#define CFU_MTKERNEL_TIMER_HZ	1000000UL
+#endif
+#define TIMER_TICK_DIV		(CFU_MTKERNEL_TIMER_HZ / (1000 / TIMER_PERIOD))
 
 /*
  * Timer start processing
