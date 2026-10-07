@@ -114,12 +114,9 @@ EXPORT void knl_timer_insert_reltim( TMEB *event, RELTIM tmout, CBACK callback, 
 	event->callback = callback;
 	event->arg = arg;
 
-	/*
-	 * Register relative task delays without the one-tick safety margin.
-	 * The delay can therefore expire up to TIMER_PERIOD early in real time
-	 * when it is requested between two system timer ticks.
-	 */
-	event->time = lltoul(knl_current_time) + tmout;
+	/* To guarantee longer wait time specified by 'tmout',
+	   add TIMER_PERIOD on wait time */
+	event->time = lltoul(knl_current_time) + tmout + TIMER_PERIOD;
 	knl_enqueue_tmeb(event);
 }
 
