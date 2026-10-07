@@ -22,10 +22,10 @@ LOCAL T_CTSK ctsk_wait = {
 // Notification task configuration
 LOCAL void task_set(INT stacd, void *exinf);  // Entry function
 LOCAL T_CTSK ctsk_set = {
-    .itskpri = 10,
-    .stksz   = 1024,
-    .task    = (FP)task_set,
-    .tskatr  = TA_HLNG | TA_RNG3,
+    .itskpri = 10,                            // Initial priority
+    .stksz   = 1024,                          // Stack size
+    .task    = (FP)task_set,                  // Entry function
+    .tskatr  = TA_HLNG | TA_RNG3,             // Task attributes
 };
 
 // Wait for bit 0 to be set
@@ -40,7 +40,7 @@ LOCAL void task_wait(INT stacd, void *exinf)
                      TWF_ORW | TWF_BITCLR, &pattern, TMO_FEVR);
     tm_putstring((const UB *)"task_wait: event received\n");
     (void)tk_del_flg(flgid_event);             // Event flag is no longer needed
-    tk_ext_tsk();
+    tk_ext_tsk();                              // Exit waiting task
 }
 
 // Set bit 0 after a short delay
@@ -48,10 +48,10 @@ LOCAL void task_set(INT stacd, void *exinf)
 {
     (void)stacd;
     (void)exinf;
-    (void)tk_dly_tsk(20U);
+    (void)tk_dly_tsk(1000U);                    // Allow task_wait to enter WAIT
     tm_putstring((const UB *)"task_set: set event\n");
-    (void)tk_set_flg(flgid_event, 0x01U);
-    tk_ext_tsk();
+    (void)tk_set_flg(flgid_event, 0x01U);      // Set bit 0 and wake task_wait
+    tk_ext_tsk();                              // Exit notification task
 }
 
 // usermain function
@@ -70,5 +70,5 @@ WEAK_FUNC EXPORT INT usermain(void)
     (void)tk_sta_tsk(tskid_set, 0);            // Start notification task
 
     (void)tk_slp_tsk(TMO_FEVR);                // Sleep forever
-    return 0;
+    return 0;                                  // Unreachable
 }

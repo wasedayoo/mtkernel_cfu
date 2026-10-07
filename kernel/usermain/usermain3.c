@@ -1,86 +1,55 @@
-// Event flag example: wait until two sensors are ready
+// Event flag example: set, clear, wait for, and delete a flag
 
 #include <tk/tkernel.h>
 #include <tm/tmonitor.h>
 
-#define SENSOR_A_READY  0x01U
-#define SENSOR_B_READY  0x02U
-
 // Event flag configuration
-LOCAL ID flgid_sensor;
-LOCAL T_CFLG cflg_sensor = {
-    .flgatr  = TA_TFIFO | TA_WSGL,
-    .iflgptn = 0U,
+LOCAL ID flgid_status;                        // Event flag ID
+LOCAL T_CFLG cflg_status = {
+    .flgatr  = TA_TFIFO | TA_WSGL,            // FIFO, one waiting task
+    .iflgptn = 0U,                            // Initial pattern: no event
 };
 
-// Task entry functions
-LOCAL void task_sensor_a(INT stacd, void *exinf);
-LOCAL void task_sensor_b(INT stacd, void *exinf);
-LOCAL void task_monitor(INT stacd, void *exinf);
-
-// Task configurations
-LOCAL T_CTSK ctsk_sensor_a = {
-    .itskpri = 10, .stksz = 1024,
-    .task = (FP)task_sensor_a, .tskatr = TA_HLNG | TA_RNG3,
-};
-LOCAL T_CTSK ctsk_sensor_b = {
-    .itskpri = 10, .stksz = 1024,
-    .task = (FP)task_sensor_b, .tskatr = TA_HLNG | TA_RNG3,
-};
-LOCAL T_CTSK ctsk_monitor = {
-    .itskpri = 10, .stksz = 1024,
-    .task = (FP)task_monitor, .tskatr = TA_HLNG | TA_RNG3,
+// Status task configuration
+LOCAL void task_status(INT stacd, void *exinf); // Entry function
+LOCAL T_CTSK ctsk_status = {
+    .itskpri = 10,                            // Initial priority
+    .stksz   = 1024,                          // Stack size
+    .task    = (FP)task_status,               // Entry function
+    .tskatr  = TA_HLNG | TA_RNG3,             // Task attributes
 };
 
-// Notify that sensor A is ready
-LOCAL void task_sensor_a(INT stacd, void *exinf)
-{
-    (void)stacd; (void)exinf;
-    (void)tk_dly_tsk(10U);
-    tm_putstring((const UB *)"sensor A: ready\n");
-    (void)tk_set_flg(flgid_sensor, SENSOR_A_READY);
-    tk_ext_tsk();
-}
-
-// Notify that sensor B is ready
-LOCAL void task_sensor_b(INT stacd, void *exinf)
-{
-    (void)stacd; (void)exinf;
-    (void)tk_dly_tsk(20U);
-    tm_putstring((const UB *)"sensor B: ready\n");
-    (void)tk_set_flg(flgid_sensor, SENSOR_B_READY);
-    tk_ext_tsk();
-}
-
-// Continue only after both ready bits have been set
-LOCAL void task_monitor(INT stacd, void *exinf)
+// Set two bits, clear bit 0, and confirm that bit 1 remains set
+LOCAL void task_status(INT stacd, void *exinf)
 {
     UINT pattern;
 
-    (void)stacd; (void)exinf;
-    tm_putstring((const UB *)"monitor: waiting for both sensors\n");
-    (void)tk_wai_flg(flgid_sensor,
-                     SENSOR_A_READY | SENSOR_B_READY,
-                     TWF_ANDW | TWF_CLR, &pattern, TMO_FEVR);
-    tm_putstring((const UB *)"monitor: both sensors are ready\n");
-    (void)tk_del_flg(flgid_sensor);
-    tk_ext_tsk();
+    (void)stacd;
+    (void)exinf;
+
+    (void)tk_set_flg(flgid_status, 0x03U);     // Set status bits 0 and 1
+    tm_putstring((const UB *)"status: bits 0 and 1 are set\n");
+
+    // tk_clr_flg keeps the bits that are 1 in the mask.
+    (void)tk_clr_flg(flgid_status, ~0x01U);    // Clear only bit 0
+    (void)tk_wai_flg(flgid_status, 0x02U,
+                     TWF_ORW, &pattern, TMO_POL);
+    tm_printf((const UB *)"status: remaining pattern = 0x%x\n", pattern);
+
+    (void)tk_del_flg(flgid_status);            // Delete event flag
+    tk_ext_tsk();                              // Exit status task
 }
 
 // usermain function
 WEAK_FUNC EXPORT INT usermain(void)
 {
-    ID tskid;
+    ID tskid_status;
 
-    flgid_sensor = tk_cre_flg(&cflg_sensor);   // Create event flag
+    flgid_status = tk_cre_flg(&cflg_status);   // Create event flag
 
-    tskid = tk_cre_tsk(&ctsk_monitor);
-    (void)tk_sta_tsk(tskid, 0);
-    tskid = tk_cre_tsk(&ctsk_sensor_a);
-    (void)tk_sta_tsk(tskid, 0);
-    tskid = tk_cre_tsk(&ctsk_sensor_b);
-    (void)tk_sta_tsk(tskid, 0);
+    tskid_status = tk_cre_tsk(&ctsk_status);   // Create status task
+    (void)tk_sta_tsk(tskid_status, 0);         // Start status task
 
-    (void)tk_slp_tsk(TMO_FEVR);
-    return 0;
+    (void)tk_slp_tsk(TMO_FEVR);                // Sleep forever
+    return 0;                                  // Unreachable
 }
