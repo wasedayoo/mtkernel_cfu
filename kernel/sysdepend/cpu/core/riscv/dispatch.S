@@ -188,6 +188,12 @@ Csym(knl_trap_handler):
 	/* Allocate stack frame */
 	addi	sp, sp, -132
 
+	/*
+	 * Save a0 before using it to calculate the interrupted value of sp.
+	 * Otherwise every interrupt returns with a0 replaced by the old sp.
+	 */
+	sw	x10, 44(sp)		/* r[9] */
+
 	/* Save general registers x1 (ra), x3 - x31 */
 	sw	x1, 8(sp)		/* r[0] */
 	addi	a0, sp, 132
@@ -199,7 +205,6 @@ Csym(knl_trap_handler):
 	sw	x7, 32(sp)		/* r[6] */
 	sw	x8, 36(sp)		/* r[7] */
 	sw	x9, 40(sp)		/* r[8] */
-	sw	x10, 44(sp)		/* r[9] */
 	sw	x11, 48(sp)		/* r[10] */
 	sw	x12, 52(sp)		/* r[11] */
 	sw	x13, 56(sp)		/* r[12] */

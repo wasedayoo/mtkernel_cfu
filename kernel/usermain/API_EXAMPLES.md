@@ -1,6 +1,6 @@
 # micro T-Kernel API examples for SimRV
 
-`usermain2.c` through `usermain9.c` are small, independent application
+`usermain2.c` through `usermain11.c` are small, independent application
 examples written in the same style as `usermain0.c`.
 
 | Source | Application behavior |
@@ -13,6 +13,8 @@ examples written in the same style as `usermain0.c`.
 | `usermain7.c` | Pass a mailbox message between two tasks |
 | `usermain8.c` | Run one alarm and cancel another scheduled alarm |
 | `usermain9.c` | Start and stop a periodic cyclic handler |
+| `usermain10.c` | Atomically count events from a task and a timer handler |
+| `usermain11.c` | Generate a function in RAM and synchronize it with FENCE.I |
 
 Event flags, semaphores, mutexes, message buffers, and mailboxes are ready for
 use as soon as their `tk_cre_*` call succeeds. They do not have a separate
@@ -39,4 +41,5 @@ make -B APP_SOURCE=../mtkernel_cfu/kernel/usermain/usermain2.c all
 ```
 
 Examples that contain delays or timer handlers need more simulated
-instructions than examples that only call an object API directly.
+instructions than examples that only call an object API directly. Use
+`--steps 400000000` to see the final result from `usermain10.c`.
